@@ -32,7 +32,7 @@ class AudioGame {
         this._isPlaying = false;
         this._isLoaded = false;
 
-        this.#loadAudio();
+        this.loadingProme = this.#loadAudio();
     }
 
     async #loadAudio() {
@@ -109,7 +109,7 @@ class AudioGame {
     async play() {
         if (!this.buffer) {
             if (this._isLoaded === false) {
-                 return Promise.reject(new Error('Audio not loaded or failed to load.'));
+                 await this.loadingProme;
             } else {
                 await new Promise(resolve => {
                     const checkBuffer = setInterval(() => {
