@@ -22,8 +22,10 @@ class AudioGame {
 
         this._loop = options.loop || false;
         this._volume = typeof options.volume === 'number' ? Math.max(0, Math.min(1, options.volume)) : 1;
-        this._pan = typeof options.pan === 'number' ? Math.max(-1, Math.min(1, options.pan)) : 0;
+        this._is3D = options.is3D || false;
+        this._pan = this._is3D ? 0 : (typeof options.pan === 'number' ? Math.max(-1, Math.min(1, options.pan)) : 0);
         this._autoplay = options.autoplay || false;
+        this._position3D = { x: 0, y: 0, z: 0 };
 
         this._currentTime = 0;
         this._duration = 0;
@@ -73,8 +75,17 @@ class AudioGame {
         this.gainNode = this.context.createGain();
         this.gainNode.gain.value = this._volume;
 
-        this.pannerNode = this.context.createStereoPanner();
-        this.pannerNode.pan.value = this._pan;
+        if(this._is3D){
+            this.pannerNode = this.context.createPanner();
+            this.pannerNode.panningModel = 'HRTF';
+            this.pannerNode.distanceModel = 'inverse';
+            this.pannerNode.positionX.setValueAtTime(this._position3D.x, this.context.currentTime);
+            this.pannerNode.positionY.setValueAtTime(this._position3D.y, this.context.currentTime);
+            this.pannerNode.positionZ.setValueAtTime(this._position3D.z, this.context.currentTime);
+        }else{
+            this.pannerNode = this.context.createStereoPanner();
+            this.pannerNode.pan.setValueAtTime(this._pan, this.context.currentTime);
+        }
 
         this.source.connect(this.gainNode);
         this.gainNode.connect(this.pannerNode);
@@ -144,6 +155,34 @@ class AudioGame {
         }
     }
 
+    setPosition3D(x, y, z){
+        if(!this._is3D){
+            console.warn("AudioGame: You can't use setPosition3D if the audio is 2D, first set is3D = true");
+            return;
+        }
+        this._position3D = { x: x, y: y, z: z };
+        if(this.pannerNode && this.pannerNode.positionX){
+            this.pannerNode.positionX.setValueAtTime(this._position3D.x, this.context.currentTime);
+            this.pannerNode.positionY.setValueAtTime(this._position3D.y, this.context.currentTime);
+            this.pannerNode.positionZ.setValueAtTime(this._position3D.z, this.context.currentTime);
+        }
+    }
+
+    get is3D(){ return this._is3D; }
+    set is3D(value){
+        const bolval = !!value;
+        if(this._is3D == bolval){
+            return;
+        }
+        this._is3D = bolval;
+        if(this._isPlaying){
+            this.pause();
+            this.play().catch((e)=>{
+                console.error(e);
+            });
+        }
+    }
+
     get loop() { return this._loop; }
     set loop(value) {
         this._loop = !!value;
@@ -158,8 +197,12 @@ class AudioGame {
 
     get pan() { return this._pan; }
     set pan(value) {
+        if(this._is3D){
+            console.warn("AudioGame: Can't set pan if sound is 3D.");
+            return;
+        }
         this._pan = Math.max(-1, Math.min(1, value));
-        if (this.pannerNode) { this.pannerNode.pan.value = this._pan; }
+        if (this.pannerNode && this.pannerNode.pan) { this.pannerNode.pan.setValueAtTime(this._pan, this.context.currentTime); }
     }
 
     get autoplay() { return this._autoplay; }
