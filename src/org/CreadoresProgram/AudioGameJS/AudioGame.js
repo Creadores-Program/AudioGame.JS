@@ -204,3 +204,4 @@ class AudioGame {
         }
     }
 }
+window.AudioGame = AudioGame;
